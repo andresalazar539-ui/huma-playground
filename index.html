@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HUMA IA — Playground</title>
+<meta name="description" content="Teste a inteligência artificial da HUMA no seu negócio">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2310B981'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='18' font-weight='900' fill='white'>H</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;overflow-x:hidden}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{border-radius:3px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes dots{0%,60%,100%{opacity:.3;transform:scale(.8)}30%{opacity:1;transform:scale(1)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.3)}50%{box-shadow:0 0 0 8px rgba(16,185,129,0)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+// ═══════════════════════════════════════════════════════════════
+// HUMA IA — Playground v2.0
+// ═══════════════════════════════════════════════════════════════
+
+const TWILIO_NUMBER = "14155238886";
+const TWILIO_JOIN = "join lay-will";
+// Quando o backend estiver no ar, coloque a URL aqui:
+// Ex: "https://huma-ia-production.up.railway.app"
+const API_BASE = "";
+
+const THEMES = {
+  dark: {
+    bg:"#020617",surface:"#0F172A",card:"#0F172A",input:"#0F172A",
+    header:"#020617ee",border:"#1E293B",text:"#E2E8F0",
+    sub:"#94A3B8",muted:"#64748B",dim:"#475569",scroll:"#1E293B",
+    waBg:"#0B141A",waHeader:"#1F2C34",waBubbleOut:"#005C4B",waBubbleIn:"#1F2C34",
+    waTextOut:"#E9EDEF",waTextIn:"#E9EDEF",waTime:"#FFFFFF99",waInput:"#2A3942",
+    waInputBorder:"#2A3942",waPattern:"rgba(255,255,255,0.015)",
+  },
+  light: {
+    bg:"#F5F0E8",surface:"#FFFFFF",card:"#FFFFFF",input:"#FAFAF7",
+    header:"#F5F0E8ee",border:"#E8E0D4",text:"#1C1917",
+    sub:"#57534E",muted:"#78716C",dim:"#A8A29E",scroll:"#D4C9BA",
+    waBg:"#ECE5DD",waHeader:"#075E54",waBubbleOut:"#DCF8C6",waBubbleIn:"#FFFFFF",
+    waTextOut:"#111B21",waTextIn:"#111B21",waTime:"#00000066",waInput:"#FFFFFF",
+    waInputBorder:"#CED0D1",waPattern:"rgba(0,0,0,0.03)",
+  },
+};
+
+const VERTICALS = [
+  {id:"clinica",label:"Clínica",icon:"🏥",color:"#10B981",desc:"Estética, odonto, dermato"},
+  {id:"ecommerce",label:"E-commerce",icon:"🛒",color:"#F59E0B",desc:"Loja online"},
+  {id:"imobiliaria",label:"Imobiliária",icon:"🏠",color:"#6366F1",desc:"Venda e locação"},
+  {id:"servicos",label:"Serviços",icon:"🔧",color:"#EC4899",desc:"Freelancer, consultoria"},
+  {id:"educacao",label:"Educação",icon:"📚",color:"#8B5CF6",desc:"Cursos, mentorias"},
+  {id:"restaurante",label:"Restaurante",icon:"🍽️",color:"#EF4444",desc:"Delivery, reservas"},
+  {id:"salao",label:"Salão / Barbearia",icon:"✂️",color:"#14B8A6",desc:"Corte, barba"},
+  {id:"advocacia",label:"Advocacia",icon:"⚖️",color:"#64748B",desc:"Jurídico"},
+  {id:"academia",label:"Academia",icon:"💪",color:"#F97316",desc:"Musculação, personal"},
+  {id:"pet",label:"Pet Shop / Vet",icon:"🐾",color:"#A855F7",desc:"Banho, tosa, consulta"},
+  {id:"automotivo",label:"Automotivo",icon:"🚗",color:"#3B82F6",desc:"Oficina, revisão"},
+  {id:"outros",label:"Outros",icon:"✨",color:"#78716C",desc:"Qualquer negócio"},
+];
+
+const VF = {
+  clinica:[
+    {id:"specialties",label:"Procedimentos e preços",placeholder:"Ex: Limpeza R$200, Botox R$1.200",type:"textarea",maxLen:500},
+    {id:"insurance",label:"Convênios",placeholder:"Ex: Amil, Bradesco",maxLen:200},
+    {id:"location",label:"Endereço",placeholder:"Rua, bairro, cidade",maxLen:200},
+  ],
+  ecommerce:[
+    {id:"products",label:"Produtos e preços",placeholder:"Ex: Tênis R$299",type:"textarea",maxLen:500},
+    {id:"shipping",label:"Frete",placeholder:"Ex: Grátis acima R$199",maxLen:200},
+    {id:"returns",label:"Troca/devolução",placeholder:"Ex: 30 dias",maxLen:200},
+  ],
+  imobiliaria:[
+    {id:"types",label:"Imóveis e preço",placeholder:"Ex: Aptos 2q R$300-800k",type:"textarea",maxLen:500},
+    {id:"regions",label:"Regiões",placeholder:"Ex: Zona Sul SP",maxLen:200},
+    {id:"financing",label:"Financiamento",placeholder:"Ex: FGTS, Caixa",maxLen:200},
+  ],
+  servicos:[
+    {id:"services",label:"Serviços e preços",placeholder:"Ex: Consultoria R$2k/mês",type:"textarea",maxLen:500},
+    {id:"guarantee",label:"Garantia",placeholder:"Ex: 30 dias ajustes",maxLen:200},
+    {id:"portfolio",label:"Cases",placeholder:"Ex: +200 clientes",maxLen:200},
+  ],
+  educacao:[
+    {id:"courses",label:"Cursos e preços",placeholder:"Ex: Excel R$297",type:"textarea",maxLen:500},
+    {id:"modality",label:"Modalidade",placeholder:"Ex: 100% online",maxLen:200},
+    {id:"certificate",label:"Certificado",placeholder:"Ex: MEC",maxLen:200},
+  ],
+  restaurante:[
+    {id:"menu",label:"Pratos e preços",placeholder:"Ex: Feijoada R$45",type:"textarea",maxLen:500},
+    {id:"delivery",label:"Delivery",placeholder:"Ex: iFood, taxa R$5",maxLen:200},
+    {id:"reservations",label:"Reservas",placeholder:"Ex: WhatsApp, 2h antes",maxLen:200},
+  ],
+  salao:[
+    {id:"services",label:"Serviços e preços",placeholder:"Ex: Corte R$50, Barba R$35",type:"textarea",maxLen:500},
+    {id:"professionals",label:"Profissionais",placeholder:"Ex: 4 barbeiros",maxLen:200},
+    {id:"cancellation",label:"Cancelamento",placeholder:"Ex: 2h antes",maxLen:200},
+  ],
+  advocacia:[
+    {id:"areas",label:"Áreas",placeholder:"Ex: Trabalhista, Família",type:"textarea",maxLen:500},
+    {id:"consultation",label:"Consulta",placeholder:"Ex: Grátis 30min",maxLen:200},
+    {id:"confidentiality",label:"Observações",placeholder:"Ex: Sigilo total",maxLen:200},
+  ],
+  academia:[
+    {id:"plans",label:"Planos e preços",placeholder:"Ex: Mensal R$99",type:"textarea",maxLen:500},
+    {id:"modalities",label:"Modalidades",placeholder:"Ex: Musculação, Funcional",maxLen:200},
+    {id:"trial",label:"Aula grátis",placeholder:"Ex: 1 aula",maxLen:200},
+  ],
+  pet:[
+    {id:"services",label:"Serviços e preços",placeholder:"Ex: Banho R$50",type:"textarea",maxLen:500},
+    {id:"emergency",label:"Emergência",placeholder:"Ex: 24h",maxLen:200},
+    {id:"delivery",label:"Leva e traz",placeholder:"Ex: Grátis 5km",maxLen:200},
+  ],
+  automotivo:[
+    {id:"services",label:"Serviços e preços",placeholder:"Ex: Óleo R$120",type:"textarea",maxLen:500},
+    {id:"brands",label:"Marcas",placeholder:"Ex: Todas",maxLen:200},
+    {id:"guarantee",label:"Garantia",placeholder:"Ex: 90 dias",maxLen:200},
+  ],
+  outros:[
+    {id:"products",label:"O que oferece",placeholder:"Produtos/serviços",type:"textarea",maxLen:500},
+    {id:"differentials",label:"Diferenciais",placeholder:"O que diferencia?",maxLen:300},
+    {id:"objections",label:"Objeções",placeholder:"Ex: Caro, demora",maxLen:300},
+  ],
+};
+
+const PAY_METHODS = [
+  {id:"pix",label:"Pix",icon:"⚡"},{id:"credit_card",label:"Cartão",icon:"💳"},
+  {id:"boleto",label:"Boleto",icon:"📄"},{id:"dinheiro",label:"Dinheiro",icon:"💵"},
+  {id:"transferencia",label:"Transferência",icon:"🏦"},
+];
+
+const INTEGRATIONS = [
+  {id:"google_calendar",label:"Google Calendar",icon:"📅",color:"#4285F4"},
+  {id:"mercado_pago",label:"Mercado Pago",icon:"💰",color:"#00B1EA"},
+  {id:"google_meet",label:"Google Meet",icon:"📹",color:"#00897B"},
+  {id:"stripe",label:"Stripe",icon:"💎",color:"#635BFF"},
+  {id:"meta_api",label:"WhatsApp Oficial",icon:"📱",color:"#25D366"},
+  {id:"elevenlabs",label:"ElevenLabs",icon:"🎙️",color:"#F97316"},
+];
+
+function buildSP(cfg) {
+  const {vertical,fields,autonomy,payments,kb} = cfg;
+  const v = VERTICALS.find(x=>x.id===vertical);
+  const ep = payments.filter(p=>p.enabled);
+  let pay = ep.length>0
+    ? "\nPAGAMENTO: "+ep.map(p=>{const m=PAY_METHODS.find(x=>x.id===p.id);return p.id==="credit_card"?m?.label+" (até "+autonomy.installments+"x)":p.id==="boleto"?m?.label+" (CPF)":m?.label}).join(", ")+". Só esses."
+    : "\nPAGAMENTO: NÃO processa. Passe pro responsável.";
+
+  let s = `Você é o clone digital de "${fields.business_name||"o negócio"}". WhatsApp. HUMANO, BRASILEIRO.
+
+IDENTIDADE:
+  Negócio: ${fields.description||"Não informado"}
+  Categoria: ${v?.label||"Geral"}
+  Tom: ${fields.tone||"Profissional e amigável"}
+  Horário: ${fields.hours||"Não definido"}
+
+COMPORTAMENTO:
+  - Mensagens CURTAS (1-2 frases). Separadas. Brasileiro real.
+  - Rapport antes de vender.
+  - Espelhe o tom do lead.
+  - Personalidade: ${autonomy.personality||"Acolhedor"}
+  ${autonomy.emojis==="Sim"?"- Emojis com moderação.":"- NUNCA use emojis."}
+  ${autonomy.discount!=="0%"?"- Desconto máximo: "+autonomy.discount+". Só se pedir.":"- Sem desconto."}
+${pay}
+
+FUNIL: RAPPORT → DISCOVERY → OFFER → CLOSING
+
+REGRAS:
+  1. NUNCA invente preços, produtos, prazos
+  2. Sem markdown, sem asteriscos
+  3. Dúvida: "Vou confirmar e já te retorno!"
+  4. FOCO NO NEGÓCIO
+  5. Só fatos da BASE DE CONHECIMENTO`;
+  if(kb?.trim()) s+="\n\nBASE DE CONHECIMENTO:\n"+kb;
+  return s;
+}
+
+function buildKB(vertical,fields) {
+  const p=[];
+  const l=[];
+  if(fields.instagram?.trim())l.push("Instagram: "+fields.instagram);
+  if(fields.google_business?.trim())l.push("Google: "+fields.google_business);
+  if(fields.website?.trim())l.push("Site: "+fields.website);
+  if(l.length)p.push(l.join("\n"));
+  (VF[vertical]||[]).forEach(f=>{if(fields[f.id]?.trim())p.push(f.label+": "+fields[f.id])});
+  if(fields.faq?.trim())p.push("FAQ:\n"+fields.faq);
+  if(fields.custom_rules?.trim())p.push("Regras:\n"+fields.custom_rules);
+  return p.join("\n\n");
+}
+
+function getTime(){const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
+
+// Components
+function TokenCounter({text,t}){
+  const tk=Math.ceil((text?.length||0)/4);
+  const c=tk>2500?"#EF4444":tk>1800?"#F59E0B":"#10B981";
+  return React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.muted}},
+    React.createElement("div",{style:{flex:1,height:4,background:t.border,borderRadius:2,overflow:"hidden"}},
+      React.createElement("div",{style:{width:Math.min((tk/3000)*100,100)+"%",height:"100%",background:c,borderRadius:2,transition:"all 0.3s"}})
+    ),
+    React.createElement("span",{style:{color:c,fontWeight:600,fontFamily:"monospace"}},"~"+tk+"/3000")
+  );
+}
+
+function Field({f,value,onChange,t}){
+  const ta=f.type==="textarea";
+  const len=(value||"").length;
+  const s={width:"100%",background:t.input,border:"1px solid "+t.border,borderRadius:10,padding:"12px 14px",color:t.text,fontSize:14,fontFamily:"'DM Sans',sans-serif",outline:"none",boxSizing:"border-box"};
+  if(ta){s.resize="vertical";s.minHeight=80}
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
+      React.createElement("label",{style:{color:t.sub,fontSize:13,fontWeight:600}},f.label,f.required&&React.createElement("span",{style:{color:"#EF4444"}}," *")),
+      f.maxLen&&React.createElement("span",{style:{fontSize:11,color:len>f.maxLen*0.85?"#F59E0B":t.dim,fontFamily:"monospace"}},len+"/"+f.maxLen)
+    ),
+    React.createElement(ta?"textarea":"input",{
+      type:ta?undefined:"text",value:value||"",
+      onChange:e=>onChange(e.target.value.slice(0,f.maxLen||9999)),
+      placeholder:f.placeholder,style:s,
+      onFocus:e=>{e.target.style.borderColor="#3B82F6"},
+      onBlur:e=>{e.target.style.borderColor=t.border},
+    })
+  );
+}
+
+function Pills({options,value,onChange,color,t}){
+  return React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6}},
+    options.map(o=>React.createElement("button",{key:o,onClick:()=>onChange(o),style:{
+      padding:"6px 14px",borderRadius:20,border:"1.5px solid "+(value===o?color:t.border),
+      background:value===o?color+"18":"transparent",color:value===o?color:t.muted,
+      fontSize:13,fontWeight:value===o?700:500,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+    }},o))
+  );
+}
+
+function DoubleCheck({color}){
+  return React.createElement("svg",{width:16,height:11,viewBox:"0 0 16 11",fill:"none",style:{marginLeft:3,flexShrink:0}},
+    React.createElement("path",{d:"M11.07 0.73L4.5 7.3L1.93 4.73L0.5 6.16L4.5 10.16L12.5 2.16L11.07 0.73Z",fill:color}),
+    React.createElement("path",{d:"M14.07 0.73L7.5 7.3L6.83 6.63L5.4 8.06L7.5 10.16L15.5 2.16L14.07 0.73Z",fill:color})
+  );
+}
+
+function WaBubble({role,text,time,t,isDark}){
+  const isMe=role==="user";
+  return React.createElement("div",{style:{display:"flex",justifyContent:isMe?"flex-end":"flex-start",padding:"1px 12px",animation:"fadeIn 0.2s ease"}},
+    React.createElement("div",{style:{
+      maxWidth:"78%",padding:"7px 10px 6px",position:"relative",
+      borderRadius:isMe?"8px 0 8px 8px":"0 8px 8px 8px",
+      background:isMe?t.waBubbleOut:t.waBubbleIn,
+      boxShadow:"0 1px 0.5px rgba(0,0,0,0.13)",
+    }},
+      React.createElement("span",{style:{color:isMe?t.waTextOut:t.waTextIn,fontSize:14.2,lineHeight:1.45,wordBreak:"break-word",whiteSpace:"pre-wrap"}},
+        text,
+        React.createElement("span",{style:{display:"inline-flex",alignItems:"center",float:"right",marginLeft:8,marginTop:4,gap:2}},
+          React.createElement("span",{style:{fontSize:11,color:t.waTime}},time),
+          isMe&&React.createElement(DoubleCheck,{color:isDark?"#53BDEB":"#4FC3F7"})
+        )
+      )
+    )
+  );
+}
+
+function WaTyping({t}){
+  return React.createElement("div",{style:{display:"flex",justifyContent:"flex-start",padding:"1px 12px"}},
+    React.createElement("div",{style:{padding:"10px 16px",borderRadius:"0 8px 8px 8px",background:t.waBubbleIn,boxShadow:"0 1px 0.5px rgba(0,0,0,0.13)",display:"flex",gap:4}},
+      [0,1,2].map(i=>React.createElement("div",{key:i,style:{width:7,height:7,borderRadius:"50%",background:t.muted,animation:"dots 1.2s infinite "+i*0.15+"s"}}))
+    )
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+function App(){
+  const[isDark,setIsDark]=useState(true);
+  const[step,setStep]=useState(0);
+  const[vertical,setVertical]=useState("");
+  const[fields,setFields]=useState({});
+  const[autonomy,setAutonomy]=useState({personality:"Acolhedor",emojis:"Sim",discount:"0%",installments:"12"});
+  const[payments,setPayments]=useState(PAY_METHODS.map(p=>({id:p.id,enabled:p.id==="pix"})));
+  const[integrations,setIntegrations]=useState(INTEGRATIONS.map(i=>({id:i.id,connected:false})));
+  const[messages,setMessages]=useState([]);
+  const[input,setInput]=useState("");
+  const[isLoading,setIsLoading]=useState(false);
+  const[showPrompt,setShowPrompt]=useState(false);
+  const[waStep,setWaStep]=useState(0);
+  const chatEnd=useRef(null);
+  const inputRef=useRef(null);
+
+  const t=THEMES[isDark?"dark":"light"];
+  const vd=VERTICALS.find(v=>v.id===vertical);
+  const kb=buildKB(vertical,fields);
+  const sp=buildSP({vertical,fields,autonomy,payments,kb});
+
+  useEffect(()=>{chatEnd.current?.scrollIntoView({behavior:"smooth"})},[messages,isLoading]);
+  useEffect(()=>{if(step===2)setTimeout(()=>inputRef.current?.focus(),100)},[step]);
+
+  const uf=useCallback((id,v)=>setFields(p=>({...p,[id]:v})),[]);
+  const canGo=fields.business_name?.trim()&&fields.description?.trim()&&fields.tone?.trim();
+
+  const send=async()=>{
+    const txt=input.trim();
+    if(!txt||isLoading)return;
+    const time=getTime();
+    const nm=[...messages,{role:"user",content:txt,time}];
+    setMessages(nm);setInput("");setIsLoading(true);
+    try{
+      let aiText;
+      if(API_BASE){
+        const r=await fetch(API_BASE+"/api/playground/chat",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({system_prompt:sp,messages:nm.map(m=>({role:m.role,content:m.content}))}),
+        });
+        const d=await r.json();aiText=d.reply||"Ops, tenta de novo!";
+      }else{
+        const r=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:sp,
+            messages:nm.map(m=>({role:m.role==="user"?"user":"assistant",content:m.content})),
+          }),
+        });
+        const d=await r.json();aiText=d.content?.[0]?.text||"Ops, tenta de novo!";
+      }
+      const parts=aiText.split(/\n\n+/).filter(x=>x.trim());
+      for(let i=0;i<parts.length;i++){
+        await new Promise(r=>setTimeout(r,i===0?400:900+Math.random()*700));
+        setMessages(p=>[...p,{role:"assistant",content:parts[i].trim(),time:getTime()}]);
+      }
+    }catch(e){setMessages(p=>[...p,{role:"assistant",content:"Erro na conexão com a IA.",time:getTime()}])}
+    finally{setIsLoading(false)}
+  };
+
+  const hasCard=payments.some(p=>p.id==="credit_card"&&p.enabled);
+  const waLink="https://wa.me/"+TWILIO_NUMBER+"?text="+encodeURIComponent(TWILIO_JOIN);
+
+  // Dynamic placeholder style
+  const phStyle = document.querySelector('#ph-style');
+  if(!phStyle){
+    const st=document.createElement('style');
+    st.id='ph-style';
+    document.head.appendChild(st);
+  }
+  const phEl=document.getElementById('ph-style');
+  if(phEl)phEl.textContent=`input::placeholder,textarea::placeholder{color:${t.dim}} ::-webkit-scrollbar-thumb{background:${t.scroll}}`;
+
+  // ════════════════════════════════════════════════════════════
+  // HEADER
+  const header=React.createElement("div",{style:{padding:"12px 20px",borderBottom:"1px solid "+t.border,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,background:t.header,backdropFilter:"blur(12px)",zIndex:100}},
+    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
+      React.createElement("div",{style:{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#10B981,#059669)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"#fff"}},"H"),
+      React.createElement("div",null,
+        React.createElement("div",{style:{fontWeight:700,fontSize:14}},"HUMA IA"),
+        React.createElement("div",{style:{fontSize:10,color:t.muted}},"Playground")
+      )
+    ),
+    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
+      React.createElement("div",{style:{display:"flex",gap:3}},
+        ["Vertical","Config","Testar","WhatsApp"].map((s,i)=>React.createElement(React.Fragment,{key:s},
+          React.createElement("button",{onClick:()=>{if(i<step)setStep(i)},disabled:i>step,style:{
+            padding:"3px 8px",borderRadius:12,border:"none",
+            background:step===i?"#10B981":step>i?"#10B98130":t.border,
+            color:step===i?"#fff":step>i?"#10B981":t.dim,
+            fontSize:10,fontWeight:600,cursor:i<=step?"pointer":"default",fontFamily:"'DM Sans',sans-serif",
+          }},s),
+          i<3&&React.createElement("div",{style:{width:8,height:1,background:step>i?"#10B981":t.border,alignSelf:"center"}})
+        ))
+      ),
+      React.createElement("button",{onClick:()=>setIsDark(!isDark),style:{
+        width:36,height:20,borderRadius:10,border:"1px solid "+t.border,
+        background:isDark?"#1E293B":"#E8E0D4",position:"relative",cursor:"pointer",padding:0,
+      }},
+        React.createElement("div",{style:{width:14,height:14,borderRadius:"50%",background:isDark?"#F59E0B":"#3B82F6",position:"absolute",top:2,left:isDark?19:2,transition:"left 0.3s",fontSize:8,display:"flex",alignItems:"center",justifyContent:"center"}},isDark?"🌙":"☀️")
+      )
+    )
+  );
+
+  // STEP 0: VERTICAL
+  const step0=React.createElement("div",{style:{maxWidth:800,margin:"0 auto",padding:"36px 20px",animation:"fadeIn 0.3s"}},
+    React.createElement("div",{style:{textAlign:"center",marginBottom:36}},
+      React.createElement("h1",{style:{fontSize:24,fontWeight:800,letterSpacing:"-0.03em",marginBottom:8}},"Qual é o seu tipo de negócio?"),
+      React.createElement("p",{style:{color:t.muted,fontSize:14}},"A HUMA se adapta à sua vertical")
+    ),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))",gap:10}},
+      VERTICALS.map(v=>React.createElement("button",{key:v.id,onClick:()=>{setVertical(v.id);setFields({})},style:{
+        background:vertical===v.id?v.color+"12":t.card,border:"2px solid "+(vertical===v.id?v.color:t.border),
+        borderRadius:14,padding:"18px 14px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:6,transition:"all 0.2s",
+      }},
+        React.createElement("span",{style:{fontSize:30}},v.icon),
+        React.createElement("span",{style:{color:vertical===v.id?v.color:t.text,fontWeight:700,fontSize:12}},v.label),
+        React.createElement("span",{style:{color:t.muted,fontSize:10,textAlign:"center"}},v.desc)
+      ))
+    ),
+    vertical&&React.createElement("div",{style:{textAlign:"center",marginTop:28,animation:"fadeIn 0.3s"}},
+      React.createElement("button",{onClick:()=>setStep(1),style:{
+        padding:"14px 44px",borderRadius:12,border:"none",background:vd?.color,color:"#fff",
+        fontSize:15,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 20px "+vd?.color+"40",fontFamily:"'DM Sans',sans-serif",
+      }},"Configurar "+vd?.label+" →")
+    )
+  );
+
+  // STEP 1: CONFIG
+  const baseFields=[
+    {id:"business_name",label:"Nome do negócio",placeholder:"Ex: Clínica Sorriso",maxLen:80,required:true},
+    {id:"description",label:"Descrição",placeholder:"O que faz, pra quem, onde",type:"textarea",maxLen:300,required:true},
+    {id:"tone",label:"Tom de voz",placeholder:"Ex: Profissional mas descontraído",maxLen:200,required:true},
+    {id:"hours",label:"Horário",placeholder:"Ex: Seg-Sex 8h-18h",maxLen:100},
+  ];
+  const onlineFields=[
+    {id:"instagram",label:"Instagram",placeholder:"@seunegocio",maxLen:100},
+    {id:"google_business",label:"Google Meu Negócio",placeholder:"Link ou nome",maxLen:200},
+    {id:"website",label:"Site",placeholder:"https://...",maxLen:200},
+  ];
+
+  const step1=React.createElement("div",{style:{maxWidth:660,margin:"0 auto",padding:"24px 20px",animation:"fadeIn 0.3s"}},
+    // Vertical badge
+    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12,marginBottom:24,padding:"12px 16px",background:vd?.color+"10",borderRadius:12,border:"1px solid "+vd?.color+"30"}},
+      React.createElement("span",{style:{fontSize:26}},vd?.icon),
+      React.createElement("div",null,
+        React.createElement("div",{style:{fontWeight:700,fontSize:15,color:vd?.color}},vd?.label),
+        React.createElement("div",{style:{fontSize:11,color:t.muted}},"Configure sua IA")
+      )
+    ),
+    // Sections
+    ...[
+      {title:"Dados básicos",flds:baseFields},
+      {title:"Presença online",sub:"A IA usa quando perguntarem",flds:onlineFields},
+      {title:vd?.label||"Específico",flds:VF[vertical]||[]},
+    ].map(sec=>React.createElement("div",{key:sec.title,style:{marginBottom:24}},
+      React.createElement("h3",{style:{fontSize:12,fontWeight:700,color:t.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:sec.sub?4:12}},sec.title),
+      sec.sub&&React.createElement("p",{style:{fontSize:11,color:t.dim,marginBottom:12}},sec.sub),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+        sec.flds.map(f=>React.createElement(Field,{key:f.id,f,value:fields[f.id],onChange:v=>uf(f.id,v),t}))
+      )
+    )),
+    // Payment
+    React.createElement("div",{style:{marginBottom:24}},
+      React.createElement("h3",{style:{fontSize:12,fontWeight:700,color:t.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}},"Pagamento"),
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6}},
+        PAY_METHODS.map(m=>{
+          const en=payments.find(p=>p.id===m.id)?.enabled;
+          return React.createElement("button",{key:m.id,onClick:()=>setPayments(p=>p.map(x=>x.id===m.id?{...x,enabled:!x.enabled}:x)),style:{
+            padding:"8px 14px",borderRadius:10,border:"1.5px solid "+(en?"#10B981":t.border),
+            background:en?"#10B98112":"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:6,
+          }},React.createElement("span",null,m.icon),React.createElement("span",{style:{fontSize:13,fontWeight:en?700:500,color:en?"#10B981":t.muted}},m.label));
+        })
+      ),
+      hasCard&&React.createElement("div",{style:{marginTop:10}},
+        React.createElement("label",{style:{color:t.sub,fontSize:12,fontWeight:600,marginBottom:6,display:"block"}},"Parcelas"),
+        React.createElement(Pills,{options:["3","6","10","12"],value:autonomy.installments,onChange:v=>setAutonomy(p=>({...p,installments:v})),color:"#3B82F6",t})
+      )
+    ),
+    // KB
+    React.createElement("div",{style:{marginBottom:24}},
+      React.createElement("h3",{style:{fontSize:12,fontWeight:700,color:t.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}},"Base de conhecimento"),
+      React.createElement("p",{style:{fontSize:11,color:t.dim,marginBottom:12}},"Dados que a IA consulta sem inflar o prompt"),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+        React.createElement(Field,{f:{id:"faq",label:"FAQ",placeholder:"P: Aceita cartão?\nR: Sim, 12x",type:"textarea",maxLen:600},value:fields.faq,onChange:v=>uf("faq",v),t}),
+        React.createElement(Field,{f:{id:"custom_rules",label:"Regras especiais",placeholder:"Ex: Nunca desconto no 1o contato",type:"textarea",maxLen:400},value:fields.custom_rules,onChange:v=>uf("custom_rules",v),t})
+      )
+    ),
+    // Personality
+    React.createElement("div",{style:{marginBottom:24}},
+      React.createElement("h3",{style:{fontSize:12,fontWeight:700,color:t.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:12}},"Personalidade"),
+      ...["Comportamento",["Acolhedor","Direto","Engraçado","Técnico","Consultivo"],"personality","Emojis",["Sim","Não"],"emojis","Desconto máx.",["0%","5%","10%","15%","20%"],"discount"].reduce((acc,v,i,arr)=>{
+        if(i%3===0)acc.push(React.createElement("div",{key:arr[i],style:{marginBottom:i<arr.length-3?12:0}},
+          React.createElement("label",{style:{color:t.sub,fontSize:12,fontWeight:600,marginBottom:6,display:"block"}},arr[i]),
+          React.createElement(Pills,{options:arr[i+1],value:autonomy[arr[i+2]],onChange:v=>setAutonomy(p=>({...p,[arr[i+2]]:v})),color:vd?.color,t})
+        ));
+        return acc;
+      },[])
+    ),
+    // Integrations
+    React.createElement("div",{style:{marginBottom:24}},
+      React.createElement("h3",{style:{fontSize:12,fontWeight:700,color:t.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}},"Integrações"),
+      React.createElement("p",{style:{fontSize:11,color:t.dim,marginBottom:12}},"Em breve — um clique"),
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:6}},
+        INTEGRATIONS.map(ig=>{
+          const c=integrations.find(x=>x.id===ig.id)?.connected;
+          return React.createElement("button",{key:ig.id,onClick:()=>setIntegrations(p=>p.map(x=>x.id===ig.id?{...x,connected:!x.connected}:x)),style:{
+            padding:"8px 12px",borderRadius:10,border:"1.5px solid "+(c?ig.color:t.border),
+            background:c?ig.color+"10":"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:6,
+          }},
+            React.createElement("span",{style:{fontSize:16}},ig.icon),
+            React.createElement("span",{style:{fontSize:12,fontWeight:600,color:c?ig.color:t.muted}},ig.label)
+          );
+        })
+      )
+    ),
+    // Prompt
+    React.createElement("div",{style:{padding:"12px 16px",background:t.surface,borderRadius:10,border:"1px solid "+t.border,marginBottom:20}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
+        React.createElement("span",{style:{fontSize:11,color:t.muted,fontWeight:600}},"PROMPT"),
+        React.createElement("button",{onClick:()=>setShowPrompt(!showPrompt),style:{padding:"2px 8px",borderRadius:4,border:"1px solid "+t.border,background:"transparent",color:t.muted,fontSize:10,cursor:"pointer",fontFamily:"monospace"}},showPrompt?"Fechar":"Ver")
+      ),
+      React.createElement(TokenCounter,{text:sp,t}),
+      showPrompt&&React.createElement("pre",{style:{marginTop:10,padding:12,background:t.bg,borderRadius:8,fontSize:10,color:t.sub,whiteSpace:"pre-wrap",maxHeight:250,overflow:"auto",lineHeight:1.6,fontFamily:"monospace",border:"1px solid "+t.border}},sp)
+    ),
+    // CTA
+    React.createElement("button",{onClick:()=>{if(canGo){setMessages([]);setInput("");setStep(2)}},disabled:!canGo,style:{
+      width:"100%",padding:"15px",borderRadius:12,border:"none",
+      background:canGo?vd?.color:t.border,color:canGo?"#fff":t.dim,
+      fontSize:15,fontWeight:700,cursor:canGo?"pointer":"not-allowed",
+      fontFamily:"'DM Sans',sans-serif",marginBottom:36,
+    }},canGo?"Testar IA →":"Preencha nome, descrição e tom")
+  );
+
+  // STEP 2: CHAT
+  const step2=React.createElement("div",{style:{display:"flex",flexDirection:"column",height:"calc(100vh - 53px)",maxWidth:500,margin:"0 auto"}},
+    // WA Header
+    React.createElement("div",{style:{padding:"10px 14px",background:t.waHeader,display:"flex",alignItems:"center",justifyContent:"space-between"}},
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
+        React.createElement("button",{onClick:()=>setStep(1),style:{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize:18,padding:0}},"←"),
+        React.createElement("div",{style:{width:38,height:38,borderRadius:"50%",background:"linear-gradient(135deg,"+vd?.color+","+vd?.color+"99)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}},vd?.icon),
+        React.createElement("div",null,
+          React.createElement("div",{style:{fontWeight:600,fontSize:15,color:"#fff"}},fields.business_name||"HUMA IA"),
+          React.createElement("div",{style:{fontSize:12,color:"#ffffff90"}},"online")
+        )
+      ),
+      React.createElement("button",{onClick:()=>setShowPrompt(!showPrompt),style:{background:"none",border:"none",color:"#ffffff80",cursor:"pointer",fontSize:12,fontFamily:"monospace"}},showPrompt?"Chat":"{}")
+    ),
+    showPrompt?
+      React.createElement("div",{style:{flex:1,overflow:"auto",padding:16,background:t.bg}},
+        React.createElement(TokenCounter,{text:sp,t}),
+        React.createElement("pre",{style:{marginTop:10,padding:14,background:t.surface,borderRadius:10,fontSize:11,color:t.sub,whiteSpace:"pre-wrap",lineHeight:1.6,fontFamily:"monospace",border:"1px solid "+t.border}},sp)
+      ):
+      React.createElement(React.Fragment,null,
+        // Chat area
+        React.createElement("div",{style:{flex:1,overflow:"auto",paddingTop:8,paddingBottom:8,background:t.waBg}},
+          messages.length===0&&React.createElement("div",{style:{display:"flex",justifyContent:"center",padding:"20px 12px"}},
+            React.createElement("div",{style:{background:isDark?"#1E293B90":"#FFFFFF90",borderRadius:8,padding:"8px 16px",fontSize:12,color:t.muted,textAlign:"center",maxWidth:280}},
+              "Manda uma mensagem como se fosse um cliente"
+            )
+          ),
+          messages.map((m,i)=>React.createElement(WaBubble,{key:i,role:m.role,text:m.content,time:m.time,t,isDark})),
+          isLoading&&React.createElement(WaTyping,{t}),
+          React.createElement("div",{ref:chatEnd})
+        ),
+        // Input
+        React.createElement("div",{style:{padding:"6px 8px",background:t.waHeader,display:"flex",gap:6,alignItems:"flex-end"}},
+          React.createElement("div",{style:{flex:1,background:t.waInput,borderRadius:22,padding:"8px 14px",border:"1px solid "+t.waInputBorder}},
+            React.createElement("input",{ref:inputRef,value:input,onChange:e=>setInput(e.target.value),
+              onKeyDown:e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}},
+              placeholder:"Mensagem",disabled:isLoading,
+              style:{width:"100%",border:"none",background:"transparent",color:isDark?"#E9EDEF":"#111B21",fontSize:15,outline:"none",fontFamily:"'DM Sans',sans-serif"}
+            })
+          ),
+          React.createElement("button",{onClick:send,disabled:!input.trim()||isLoading,style:{
+            width:42,height:42,borderRadius:"50%",border:"none",
+            background:input.trim()&&!isLoading?"#00A884":isDark?"#2A3942":"#CED0D1",
+            cursor:input.trim()&&!isLoading?"pointer":"default",
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+          }},
+            React.createElement("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"white"},
+              React.createElement("path",{d:"M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"})
+            )
+          )
+        ),
+        // Ativar WA
+        React.createElement("div",{style:{padding:"10px 12px",background:t.surface,borderTop:"1px solid "+t.border,textAlign:"center"}},
+          React.createElement("button",{onClick:()=>setStep(3),style:{
+            padding:"12px 28px",borderRadius:10,border:"none",
+            background:"#25D366",color:"#fff",fontSize:14,fontWeight:700,
+            cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+            display:"inline-flex",alignItems:"center",gap:8,
+          }},
+            React.createElement("svg",{width:18,height:18,viewBox:"0 0 24 24",fill:"white"},
+              React.createElement("path",{d:"M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"}),
+              React.createElement("path",{d:"M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"})
+            ),
+            "Aprovei! Testar no WhatsApp →"
+          )
+        )
+      )
+  );
+
+  // STEP 3: WHATSAPP
+  const step3=React.createElement("div",{style:{maxWidth:440,margin:"0 auto",padding:"40px 20px",animation:"fadeIn 0.3s"}},
+    React.createElement("div",{style:{textAlign:"center",marginBottom:32}},
+      React.createElement("div",{style:{fontSize:52,marginBottom:12}},"📱"),
+      React.createElement("h2",{style:{fontSize:22,fontWeight:800,marginBottom:8}},"Testar no WhatsApp"),
+      React.createElement("p",{style:{color:t.muted,fontSize:14,lineHeight:1.5}},
+        "Sua IA está configurada como ",
+        React.createElement("strong",{style:{color:vd?.color}},fields.business_name),
+        ". Agora vamos conectar pra você testar de verdade."
+      )
+    ),
+    // Step 1: Connect
+    React.createElement("div",{style:{background:t.surface,borderRadius:16,border:"1px solid "+t.border,overflow:"hidden",marginBottom:16}},
+      React.createElement("div",{style:{padding:"16px 20px",borderBottom:"1px solid "+t.border,display:"flex",alignItems:"center",gap:10}},
+        React.createElement("div",{style:{width:28,height:28,borderRadius:"50%",background:waStep>=1?"#10B981":vd?.color,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}},waStep>=1?"✓":"1"),
+        React.createElement("span",{style:{fontWeight:700,fontSize:15}},"Conectar WhatsApp")
+      ),
+      React.createElement("div",{style:{padding:"16px 20px"}},
+        waStep===0?React.createElement(React.Fragment,null,
+          React.createElement("p",{style:{color:t.sub,fontSize:13,marginBottom:16,lineHeight:1.5}},
+            "Toque no botão abaixo. O WhatsApp vai abrir com uma mensagem pronta — é só enviar."
+          ),
+          React.createElement("a",{href:waLink,target:"_blank",rel:"noopener noreferrer",
+            onClick:()=>setTimeout(()=>setWaStep(1),1500),
+            style:{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:14,borderRadius:12,background:"#25D366",color:"#fff",fontSize:15,fontWeight:700,textDecoration:"none",cursor:"pointer"}
+          },
+            React.createElement("svg",{width:20,height:20,viewBox:"0 0 24 24",fill:"white"},
+              React.createElement("path",{d:"M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"}),
+              React.createElement("path",{d:"M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"})
+            ),
+            "Abrir WhatsApp e conectar"
+          )
+        ):React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,color:"#10B981",fontSize:14,fontWeight:600}},"✓ WhatsApp conectado")
+      )
+    ),
+    // Step 2: Test
+    React.createElement("div",{style:{background:t.surface,borderRadius:16,border:"1px solid "+t.border,overflow:"hidden",opacity:waStep>=1?1:0.5,transition:"all 0.3s"}},
+      React.createElement("div",{style:{padding:"16px 20px",borderBottom:"1px solid "+t.border,display:"flex",alignItems:"center",gap:10}},
+        React.createElement("div",{style:{width:28,height:28,borderRadius:"50%",background:waStep>=1?vd?.color:t.border,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}},"2"),
+        React.createElement("span",{style:{fontWeight:700,fontSize:15}},"Testar sua IA")
+      ),
+      waStep>=1&&React.createElement("div",{style:{padding:"16px 20px"}},
+        React.createElement("p",{style:{color:t.sub,fontSize:13,marginBottom:16,lineHeight:1.5}},
+          "Agora manda qualquer mensagem naquela mesma conversa. Finja que é um cliente do ",
+          React.createElement("strong",null,fields.business_name),
+          " e veja a HUMA responder!"
+        ),
+        React.createElement("div",{style:{padding:"14px 16px",background:vd?.color+"10",borderRadius:12,border:"1px solid "+vd?.color+"30"}},
+          React.createElement("div",{style:{fontSize:13,fontWeight:600,color:vd?.color,marginBottom:6}},"Dicas de teste:"),
+          React.createElement("div",{style:{fontSize:12,color:t.sub,lineHeight:1.6}},
+            '• "Oi, quero saber sobre..."',React.createElement("br"),
+            '• "Quanto custa?"',React.createElement("br"),
+            '• "Vocês atendem sábado?"',React.createElement("br"),
+            '• Saia do assunto pra ver o guardrail'
+          )
+        )
+      )
+    ),
+    React.createElement("div",{style:{textAlign:"center",marginTop:24}},
+      React.createElement("button",{onClick:()=>{setStep(1);setWaStep(0)},style:{
+        padding:"10px 24px",borderRadius:10,border:"1px solid "+t.border,
+        background:"transparent",color:t.muted,fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+      }},"← Voltar e ajustar")
+    )
+  );
+
+  return React.createElement("div",{style:{minHeight:"100vh",background:t.bg,color:t.text,fontFamily:"'DM Sans',sans-serif",transition:"background 0.3s"}},
+    header,
+    step===0&&step0,
+    step===1&&step1,
+    step===2&&step2,
+    step===3&&step3
+  );
+}
+
+ReactDOM.render(React.createElement(App),document.getElementById("root"));
+</script>
+</body>
+</html>
